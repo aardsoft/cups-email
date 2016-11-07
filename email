@@ -21,7 +21,7 @@ CUPS_BASE=/etc/cups/
 MAILCMD=/usr/bin/mailx
 
 # The full path to the postscript to pdf program (ps2pdf)
-PS2PDF=/usr/share/texmf/bin/epstopdf
+PS2PDF=/usr/bin/epstopdf
 
 # The text to send in the body of the e-mail.  The actual "printed" document is
 # sent as a PDF attachment.
