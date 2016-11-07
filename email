@@ -1,18 +1,28 @@
 #!/bin/sh
 #
-# /usr/lib/cups/backend/email - Script to send e-mail confirmations via the CUPS print server
+# /usr/lib/cups/backend/email - Script to send e-mail confirmations via the CUPS
+#                               print server
 #
 # This program is a modified version of fax4cups, available at
 # http://vigna.dsi.unimi.it/fax4CUPS/
 #
 
-# The full and complete path to the nail program
-NAILPRG=/usr/bin/nail
+###############################################################################
+# Do not edit anything after this point unless you know what you are doing... #
+#                                                                             #
+# You can override all defaults below with global or queue specific files:    #
+# - $CUPS_BASE/email             for global overrides                         #
+# - $CUPS_BASE/email-<queue>     for queue specific overrides                 #
+###############################################################################
+
+# The full and complete path to the mailx program
+MAILCMD=/usr/bin/mailx
 
 # The full path to the postscript to pdf program (ps2pdf)
 PS2PDF=/usr/share/texmf/bin/epstopdf
 
-# The text to send in the body of the e-mail.  The actual "printed" document is sent as a PDF attachment.
+# The text to send in the body of the e-mail.  The actual "printed" document is
+# sent as a PDF attachment.
 MAILTEXT="This is the text of the e-mail.  The actual data that was printed is sent as a .PDF file"
 
 # The from address to use.
@@ -21,12 +31,9 @@ DEFFROM="you@yourisp.net"
 # The default method to get the send-to address (-j is from the jobname, -u is from the username).
 TO="-j"
 
-#############################################################################################################
-# Do not edit anything after this point unless you know what you are doing...                               #
-#############################################################################################################
 
 if [ $# -eq 0 ]; then
-    if [ ! -x "$NAILPRG" ]; then exit 1; fi
+    if [ ! -x "$MAILCMD" ]; then exit 1; fi
     if [ ! -x "$PS2PDF" ]; then exit 1; fi
     echo "virtual email \"Unknown\" \"E-Mail Device\""
 fi
@@ -98,15 +105,10 @@ MAILPDF="$MAILFILE.pdf"
 
 $PS2PDF $MAILFILE -o $MAILPDF
 
-NAILCMD="env MAILRC=/dev/null echo "$MAILTEXT" | $NAILPRG -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO"
-
-echo "DEBUG:Command - $NAILCMD" 1>&2
-# Switch to using a variable for the entire command instead of using the command directly.
-# env MAILRC=/dev/null echo "$MAILTEXT" | $NAILPRG -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
-$NAILCMD
+env MAILRC=/dev/null echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
 RC=$?
 
 rm -f $MAILPDF
 if [ $# -lt 6 ]; then rm -f $MAILFILE; fi
-echo "DEBUG:$NAILPRG returned $RC" 1>&2
+echo "DEBUG:$MAILCMD returned $RC" 1>&2
 exit $RC
