@@ -71,7 +71,8 @@ done
 if [ $# -eq 6 ]; then
     MAILFILE=$6
 else
-    MAILFILE=$(mktemp </dev/null /tmp/fax.XXXXXX) || (echo "ERROR:Failed to create temporary file"; exit 1)
+    MAILFILE=$(mktemp </dev/null /tmp/fax.XXXXXX) ||
+        (echo "ERROR:Failed to create temporary file"; exit 1)
     cat >$MAILFILE
 fi
 
@@ -79,7 +80,10 @@ fi
 function getSelectedOption() {
     for i in $@; do
         case $i in
-            \**) SELOPT=${i#[*]}; return ;;
+            \**)
+                SELOPT=${i#[*]};
+                return
+                ;;
         esac
     done
 }
@@ -92,9 +96,21 @@ function parseOptions() {
         getSelectedOption $OPTIONS
 
         case $MAIN in
-            PageSize/*) echo "PAGE=$( echo -n "$SELOPT" | tr '[:upper:]' '[:lower:]' )" ;;
-            Resolution/*) if [ "$SELOPT" == "204x98dpi" ]; then echo "RES=-l"; fi ;;
-            To/*) if [ $SELOPT == "JobName" ]; then echo "TO=-j";elif [ $SELOPT == "UserName" ]; then echo "TO=-u"; fi ;;
+            PageSize/*)
+                echo "PAGE=$( echo -n "$SELOPT" | tr '[:upper:]' '[:lower:]' )"
+                ;;
+            Resolution/*)
+                if [ "$SELOPT" == "204x98dpi" ]; then
+                    echo "RES=-l";
+                fi
+                ;;
+            To/*)
+                if [ $SELOPT == "JobName" ]; then
+                    echo "TO=-j"
+                elif [ $SELOPT == "UserName" ]; then
+                    echo "TO=-u"
+                fi
+                ;;
         esac
     done
 }
@@ -119,7 +135,9 @@ for opt in $5; do
         To=JobName*)
             TO="$3"
             ;;
-        phone=*) TO="${opt#phone=}" ;;
+        phone=*)
+            TO="${opt#phone=}"
+            ;;
     esac
 done
 
@@ -134,6 +152,9 @@ echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
 RC=$?
 
 rm -f $MAILPDF
-if [ $# -lt 6 ]; then rm -f $MAILFILE; fi
+if [ $# -lt 6 ];then
+    rm -f $MAILFILE
+fi
+
 echo "DEBUG:$MAILCMD returned $RC" 1>&2
 exit $RC
