@@ -33,6 +33,13 @@ FROM=""
 # The default method to get the send-to address (-j is from the jobname, -u is from the username).
 TO="-j"
 
+MAILRC=/dev/null
+
+# A list of mailx variables to be exported (i.e., made available to mailx if
+# set in the configuration files)
+MAILX_VARS="from ORGANIZATION replyto sender sendwait signature smtp
+ smtp-auth smtp-auth-password smtp-auth-user MAILRC"
+
 if [ -f $CUPS_BASE/email ]; then
     . $CUPS_BASE/email
 fi
@@ -56,6 +63,10 @@ if [ -z "$FROM" ]; then
     echo "ERROR:FROM is not defined"
     exit 1
 fi
+
+for VAR in $MAILX_VARS; do
+    export $VAR
+done
 
 if [ $# -eq 6 ]; then
     MAILFILE=$6
@@ -119,7 +130,7 @@ MAILPDF="$MAILFILE.pdf"
 
 $PS2PDF $MAILFILE -o $MAILPDF
 
-env MAILRC=/dev/null echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
+echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
 RC=$?
 
 rm -f $MAILPDF
