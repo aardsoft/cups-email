@@ -7,6 +7,8 @@
 # http://vigna.dsi.unimi.it/fax4CUPS/
 #
 
+CUPS_BASE=/etc/cups/
+
 ###############################################################################
 # Do not edit anything after this point unless you know what you are doing... #
 #                                                                             #
@@ -26,11 +28,14 @@ PS2PDF=/usr/share/texmf/bin/epstopdf
 MAILTEXT="This is the text of the e-mail.  The actual data that was printed is sent as a .PDF file"
 
 # The from address to use.
-DEFFROM="you@yourisp.net"
+FROM=""
 
 # The default method to get the send-to address (-j is from the jobname, -u is from the username).
 TO="-j"
 
+if [ -f $CUPS_BASE/email ]; then
+    . $CUPS_BASE/email
+fi
 
 if [ $# -eq 0 ]; then
     if [ ! -x "$MAILCMD" ]; then exit 1; fi
@@ -38,9 +43,18 @@ if [ $# -eq 0 ]; then
     echo "virtual email \"Unknown\" \"E-Mail Device\""
 fi
 
-FROM=`echo $DEVICE_URI | cut -d ':' -f 2 -s`
-if [ "x$FROM" == "x" ]; then
-    FROM="$DEFFROM"
+QUEUE=`echo $DEVICE_URI | cut -d '/' -f 2 -s`
+if [ -n "$QUEUE" ]; then
+    if [ -f $CUPS_BASE/email-default ]; then
+        . $CUPS_BASE/email-default
+    elif [ -f $CUPS_BASE/email-$QUEUE ]; then
+        . $CUPS_BASE/email-$QUEUE
+    fi
+fi
+
+if [ -z "$FROM" ]; then
+    echo "ERROR:FROM is not defined"
+    exit 1
 fi
 
 if [ $# -eq 6 ]; then
