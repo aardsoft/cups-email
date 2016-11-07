@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+# /usr/lib/cups/backend/email - Script to send e-mail confirmations via the CUPS print server
+#
+# This program is a modified version of fax4cups, available at
+# http://vigna.dsi.unimi.it/fax4CUPS/
+#
+
+# The full and complete path to the nail program
+NAILPRG=/usr/bin/nail
+
+# The full path to the postscript to pdf program (ps2pdf)
+PS2PDF=/usr/share/texmf/bin/epstopdf
+
+# The text to send in the body of the e-mail.  The actual "printed" document is sent as a PDF attachment.
+MAILTEXT="This is the text of the e-mail.  The actual data that was printed is sent as a .PDF file"
+
+# The from address to use.
+DEFFROM="you@yourisp.net"
+
+# The default method to get the send-to address (-j is from the jobname, -u is from the username).
+TO="-j"
+
+#############################################################################################################
+# Do not edit anything after this point unless you know what you are doing...                               #
+#############################################################################################################
+
+if [ $# -eq 0 ]; then
+    if [ ! -x "$NAILPRG" ]; then exit 1; fi
+    if [ ! -x "$PS2PDF" ]; then exit 1; fi
+    echo "virtual email \"Unknown\" \"E-Mail Device\""
+fi
+
+FROM=`echo $DEVICE_URI | cut -d ':' -f 2 -s`
+if [ "x$FROM" == "x" ]; then
+    FROM="$DEFFROM"
+fi
+
+if [ $# -eq 6 ]; then
+    MAILFILE=$6
+else
+    MAILFILE=$(mktemp </dev/null /tmp/fax.XXXXXX) || (echo "ERROR:Failed to create temporary file"; exit 1)
+    cat >$MAILFILE
+fi
+
+# Parse user-specified options from the PostScript file and set -l/-m
+function getSelectedOption() {
+    for i in $@; do
+        case $i in
+            \**) SELOPT=${i#[*]}; return ;;
+        esac
+    done
+}
+
+function parseOptions() {
+    while read LINE; do
+        echo "DEBUG:$LINE" 1>&2
+        MAIN=${LINE%%:*}
+        OPTIONS=${LINE##*:}
+        getSelectedOption $OPTIONS
+
+        case $MAIN in
+            PageSize/*) echo "PAGE=$( echo -n "$SELOPT" | tr '[:upper:]' '[:lower:]' )" ;;
+            Resolution/*) if [ "$SELOPT" == "204x98dpi" ]; then echo "RES=-l"; fi ;;
+            To/*) if [ $SELOPT == "JobName" ]; then echo "TO=-j";elif [ $SELOPT == "UserName" ]; then echo "TO=-u"; fi ;;
+        esac
+    done
+}
+
+eval $(lpoptions -p $PRINTER -l | parseOptions)
+echo "DEBUG:TO=$TO" 1>&2
+
+if [ "$TO" == "-j" ]; then
+    TO="$3";
+fi
+
+if [ "$TO" == "-u" ]; then
+    TO="$2";
+fi
+
+echo "DEBUG:Options - $5" 1>&2
+for opt in $5; do
+    case "$opt" in
+        To=UserName*)
+            TO="$2"
+            ;;
+        To=JobName*)
+            TO="$3"
+            ;;
+        phone=*) TO="${opt#phone=}" ;;
+    esac
+done
+
+echo 1>&2 # Apparently the first character emitted is somehow "eaten" by the reader
+echo "DEBUG:E-mail Address - $EMAIL" 1>&2
+
+MAILPDF="$MAILFILE.pdf"
+
+$PS2PDF $MAILFILE -o $MAILPDF
+
+NAILCMD="env MAILRC=/dev/null echo "$MAILTEXT" | $NAILPRG -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO"
+
+echo "DEBUG:Command - $NAILCMD" 1>&2
+# Switch to using a variable for the entire command instead of using the command directly.
+# env MAILRC=/dev/null echo "$MAILTEXT" | $NAILPRG -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
+$NAILCMD
+RC=$?
+
+rm -f $MAILPDF
+if [ $# -lt 6 ]; then rm -f $MAILFILE; fi
+echo "DEBUG:$NAILPRG returned $RC" 1>&2
+exit $RC
