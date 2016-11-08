@@ -45,8 +45,17 @@
 *PaperDimension Letter: "612 792"
 *PaperDimension Legal: "612 1008"
 
-*OpenUI *To/E-Mail Address: PickOne
-*OrderDependency: 30 AnySetup *Dial
+*OpenUI ToAddress/E-Mail Address: PickOne
+*OrderDependency: 10 AnySetup *ToAddress
+*DefaultToAddress: None
+*ToAddress None/Selected by source: ""
+*CloseUI: *ToAddress
+
+*CustomToAddress True: "<</cupsString1 3 -1 roll>>setpagedevice"
+*ParamCustomToAddress Text: 1 string 0 32
+
+*OpenUI *To/E-Mail Address source: PickOne
+*OrderDependency: 20 AnySetup *Dial
 *DefaultT: JobName
 *To JobName/Job Name:	""
 *To UserName/User Name:	""

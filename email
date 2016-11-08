@@ -68,14 +68,6 @@ for VAR in $MAILX_VARS; do
     export $VAR
 done
 
-if [ $# -eq 6 ]; then
-    MAILFILE=$6
-else
-    MAILFILE=$(mktemp </dev/null /tmp/fax.XXXXXX) ||
-        (echo "ERROR:Failed to create temporary file"; exit 1)
-    cat >$MAILFILE
-fi
-
 # Parse user-specified options from the PostScript file and set -l/-m
 function getSelectedOption() {
     for i in $@; do
@@ -118,37 +110,57 @@ function parseOptions() {
 eval $(lpoptions -p $PRINTER -l | parseOptions)
 echo "DEBUG:TO=$TO" 1>&2
 
-if [ "$TO" == "-j" ]; then
-    TO="$3";
-fi
-
-if [ "$TO" == "-u" ]; then
-    TO="$2";
-fi
-
+# loop over options. Extract custom strings, as well as overrides
+# for the TO (user or job name as address) flag
 echo "DEBUG:Options - $5" 1>&2
 for opt in $5; do
     case "$opt" in
         To=UserName*)
-            TO="$2"
+            TO="-u"
             ;;
         To=JobName*)
-            TO="$3"
+            TO="-j"
             ;;
-        phone=*)
-            TO="${opt#phone=}"
+        ToAddress=*)
+            TO_ADDRESS="${opt#ToAddress=}"
+            TO_ADDRESS="${TO_ADDRESS#Custom.}"
             ;;
     esac
 done
 
+# if no to address was specified via options try to fall back to either
+# job name or user name
+if [ -z "$TO_ADDRESS" ]; then
+    if [ "$TO" == "-j" ]; then
+        TO_ADDRESS="$3";
+    elif [ "$TO" == "-u" ]; then
+        if [ -n "$DEFAULTDOMAIN" ]; then
+            TO_ADDRESS="$2@$DEFAULTDOMAIN"
+        else
+            # this probably only works through local sendmail, not smtp
+            TO_ADDRESS="$2";
+        fi
+    else
+        echo "DEBUG:Unable to figure out TO" 1>&2
+        exit 1
+    fi
+fi
+
 echo 1>&2 # Apparently the first character emitted is somehow "eaten" by the reader
 echo "DEBUG:E-mail Address - $EMAIL" 1>&2
+if [ $# -eq 6 ]; then
+    MAILFILE=$6
+else
+    MAILFILE=$(mktemp </dev/null /tmp/fax.XXXXXX) ||
+        (echo "ERROR:Failed to create temporary file"; exit 1)
+    cat >$MAILFILE
+fi
 
 MAILPDF="$MAILFILE.pdf"
 
 $PS2PDF $MAILFILE -o $MAILPDF
 
-echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO
+echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO_ADDRESS
 RC=$?
 
 rm -f $MAILPDF
