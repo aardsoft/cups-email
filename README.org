@@ -1,0 +1,80 @@
+* cups-email
+
+This is a fork of the old [[https://sourceforge.net/projects/cupsemailptr/][cupsemailptr]], which is a variant of [[http://vigna.di.unimi.it/fax4CUPS/][fax4CUPS]]. Improvements include:
+
+- configuration files separated from the script, allowing easy queue-specific configurations
+- using a SMTP server instead of local sendmail
+- free-form parameters (like to address) through the graphical print dialogue
+
+
+** Installation
+
+This printer drivers consists of two files, the post script printer definition (email.ppd) and the backend script (email). The PPD needs to be installed to the cups model directory (usually =/usr/share/cups/model=), the script to the cups backend directory (usually =/usr/lib/cups/backend=).
+
+The script assumes to find the cups configuration directory at =/etc/cups=. If it's different on your system you need to edit the =CUPS_BASE= variable at the beginning of the script.
+
+All other variables can be overridden globally by adding a =$CUPS_BASE/email= configuration file, or for specific printers using =$CUPS_BASE/email-<queue>=
+
+The script assumes to find =mailx= and =epstopdf= in =/usr/bin=. If they are installed in different location configure them in =$CUPS_BASE/email=:
+
+#+BEGIN_SRC sh
+MAILCMD=/path/to/mailx
+PS2PDF=/path/to/epstopdf
+#+END_SRC
+
+** Configuration
+*** Adding a printer
+
+After successful installation a new printer called =E-Mail Device= should be available when adding new printers:
+
+#+CAPTION: Selecting printer
+[[./img/backend_select.png]]
+
+The connection URI for the printer should be =email:/<queue>=:
+
+#+CAPTION: Configure printer URI
+[[./img/connection_select.png]]
+
+Select =email= as printer driver for this new printer:
+
+#+CAPTION: Configure printer driver
+[[./img/driver_select.png]]
+
+Finish the configuration by creating a queue configuration file in =$CUPS_BASE/email-<queue>:
+
+#+BEGIN_SRC sh
+FROM=printer@example.com
+#+END_SRC
+
+*** Configuration variables
+
+All variables can be used in both global and queue specific files. If they're specified in both locations the queue specific value overrides the global one.
+
+**** MAILCMD
+The full path to a  [[http://heirloom.sourceforge.net/mailx.html][modern mailx variant]]
+**** PS2PDF
+The full path to =epstopdf=, nowadays commonly shipped with =texlive=
+**** MAILTEXT
+The text contained in the body of the e-mail
+**** FROM
+The from address to use for sending mails
+**** TO
+The location for getting the send-to address. Valid values are =-j= for using the job name and =-u= for using the user name.
+
+Unless sending through a local sendmail the user name is most likely useless without a mail domain. If a =DEFAULTDOMAIN= variable is set =<user>@$DEFAULTDOMAIN= will be used as address.
+
+Explicitely setting the to address via options - either as =-o ToAddress=<user@example.com>= or via the print dialogue - will override this setting.
+**** MAILRC
+The location of the mailrc file, defaulting to =/dev/null=
+
+**** MAILX_VARS
+A list of variables understood by mailx (see the mailx man page), which will be exported (and therefore made available to mailx). The default list is ="from ORGANIZATION replyto sender sendwait signature smtp MAILRC"=.
+
+Any of those variables may be used in the configuration file. Most useful is the =smtp= variable, allowing sending via a SMTP server instead of local sendmail.
+** Printing
+TODO
+
+* References
+- [[https://www.cups.org/doc/api-filter.html][CUPS backend documentation]]
+- [[https://wiki.linuxfoundation.org/en/OpenPrinting/PPDExtensions#Custom_Options][OpenPrinting about custom PPD extensions]]
+- [[https://www.cups.org/doc/spec-ppd.html#OPTIONS][CUPS specific PPD extensions]]
