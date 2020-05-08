@@ -6,16 +6,15 @@ This is a fork of the old [[https://sourceforge.net/projects/cupsemailptr/][cups
 - using a SMTP server instead of local sendmail
 - free-form parameters (like to address) through the graphical print dialogue
 
-
 ** Installation
 
 This printer drivers consists of two files, the post script printer definition (email.ppd) and the backend script (email). The PPD needs to be installed to the cups model directory (usually =/usr/share/cups/model=), the script to the cups backend directory (usually =/usr/lib/cups/backend=).
 
-The script assumes to find the cups configuration directory at =/etc/cups=. If it's different on your system you need to edit the =CUPS_BASE= variable at the beginning of the script.
+The script uses the =CUPS_SERVERROOT= (usually =/etc/cups=) and =CUPS_DATADIR= (usually =/usr/share/cups/=) for locating configurations and ppd files. Those should always be set when called from cups, but will need to be set manually when starting the script outside of cups for debugging.
 
-All other variables can be overridden globally by adding a =$CUPS_BASE/email= configuration file, or for specific printers using =$CUPS_BASE/email-<queue>=
+All other variables can be overridden globally by adding a =$CUPS_SERVERROOT/email= configuration file, or for specific printers using =$CUPS_SERVERROOT/email-<queue>=
 
-The script assumes to find =mailx= and =epstopdf= in =/usr/bin=. If they are installed in different location configure them in =$CUPS_BASE/email=:
+The script assumes to find =mailx= and =epstopdf= in =/usr/bin=. If they are installed in different location configure them in =$CUPS_SERVERROOT/email=:
 
 #+BEGIN_SRC sh
 MAILCMD=/path/to/mailx
@@ -25,6 +24,22 @@ PS2PDF=/path/to/epstopdf
 ** Configuration
 *** Adding a printer
 
+**** Adding through CLI
+
+Verify that the installation was successful using =lpinfo=:
+
+#+BEGIN_SRC sh
+# lpinfo -m|grep -i email
+email.ppd email
+#+END_SRC
+
+Now add a printer using =lpadmin=:
+
+#+BEGIN_SRC sh
+# lpadmin -p email-sample -E -v email:/sample -D 'Sample email printer' -L 'Printer location' -m email.ppd
+#+END_SRC
+
+**** Adding through the web interface
 After successful installation a new printer called =E-Mail Device= should be available when adding new printers:
 
 #+CAPTION: Selecting printer
@@ -40,11 +55,19 @@ Select =email= as printer driver for this new printer:
 #+CAPTION: Configure printer driver
 [[./img/driver_select.png]]
 
-Finish the configuration by creating a queue configuration file in =$CUPS_BASE/email-<queue>:
+**** Adding queue specific configuration
+
+This step may be skipped when running with a properly configured sendmail, but even then it may be necessary to configure a from address.
+
+Create a queue configuration file in =$CUPS_SERVERROOT/email-<queue>:
 
 #+BEGIN_SRC sh
 FROM=printer@example.com
+DEFAULTDOMAIN=example.com
+smtp=mail.example.com
 #+END_SRC
+
+This is generally the smallest sensible configuration when sending via SMTP. You may need to add authentication information. Check the next section for available variables.
 
 *** Configuration variables
 

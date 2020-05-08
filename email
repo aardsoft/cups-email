@@ -6,16 +6,25 @@
 # This program is a modified version of fax4cups, available at
 # http://vigna.dsi.unimi.it/fax4CUPS/
 #
-
-CUPS_BASE=/etc/cups/
-
 ###############################################################################
 # Do not edit anything after this point unless you know what you are doing... #
 #                                                                             #
 # You can override all defaults below with global or queue specific files:    #
-# - $CUPS_BASE/email             for global overrides                         #
-# - $CUPS_BASE/email-<queue>     for queue specific overrides                 #
+# - $CUPS_SERVERROOT/email             for global overrides                   #
+# - $CUPS_SERVERROOT/email-<queue>     for queue specific overrides           #
 ###############################################################################
+
+# SERVERROT typically points to /etc/cups
+if [ -z "$CUPS_SERVERROOT" ]; then
+    echo "ERROR:CUPS_SERVERROOT not set. When running in CUPS this should not happen." 1>&2
+    exit 1
+fi
+
+# DATADIR typically points to /usr/share/cups; model subdirectory has ppds
+if [ -z "$CUPS_DATADIR" ]; then
+    echo "ERROR:CUPS_DATADIR not set. When running in CUPS this should not happen." 1>&2
+    exit 1
+fi
 
 # The full and complete path to the mailx program
 MAILCMD=/usr/bin/mailx
@@ -40,8 +49,8 @@ MAILRC=/dev/null
 MAILX_VARS="from ORGANIZATION replyto sender sendwait signature smtp
  smtp-auth smtp-auth-password smtp-auth-user MAILRC"
 
-if [ -f $CUPS_BASE/email ]; then
-    . $CUPS_BASE/email
+if [ -f $CUPS_SERVERROOT/email ]; then
+    . $CUPS_SERVERROOT/email
 fi
 
 if [ $# -eq 0 ]; then
@@ -52,10 +61,10 @@ fi
 
 QUEUE=`echo $DEVICE_URI | cut -d '/' -f 2 -s`
 if [ -n "$QUEUE" ]; then
-    if [ -f $CUPS_BASE/email-default ]; then
-        . $CUPS_BASE/email-default
-    elif [ -f $CUPS_BASE/email-$QUEUE ]; then
-        . $CUPS_BASE/email-$QUEUE
+    if [ -f $CUPS_SERVERROOT/email-default ]; then
+        . $CUPS_SERVERROOT/email-default
+    elif [ -f $CUPS_SERVERROOT/email-$QUEUE ]; then
+        . $CUPS_SERVERROOT/email-$QUEUE
     fi
 fi
 
