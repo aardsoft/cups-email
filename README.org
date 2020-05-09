@@ -2,42 +2,67 @@
 
 This is a fork of the old [[https://sourceforge.net/projects/cupsemailptr/][cupsemailptr]], which is a variant of [[http://vigna.di.unimi.it/fax4CUPS/][fax4CUPS]]. Improvements include:
 
-- configuration files separated from the script, allowing easy queue-specific configurations
+- configuration options through the cups server, allowing easy queue-specific configurations
 - using a SMTP server instead of local sendmail
 - free-form parameters (like to address) through the graphical print dialogue
+- significantly better error handling and reporting
+
+** Breaking changes after version 0.1
+
+Improvements after release 0.1 introduced many breaking changes. Please go through the configuration guide below again when upgrading. The breaking changes are mainly:
+
+- installation sanity checking now happens at the time of printing, not at the time of adding a printer.
+- global and queue specific configuration files in the cups root are no longer read.
+- only a subset of mailx variables can be directly configured, and no variables can be added. This means that for complex configurations a mailxrc is now mandatory.
+- the option names have changed. Existing wrappers around lpr will need to be adjusted.
+- source for email address is no longer a user changeable option
+- email address source no longer allows option overrides when set to a specific source
 
 ** Installation
 
 This printer drivers consists of two files, the post script printer definition (email.ppd) and the backend script (email). The PPD needs to be installed to the cups model directory (usually =/usr/share/cups/model=), the script to the cups backend directory (usually =/usr/lib/cups/backend=).
 
-The script uses the =CUPS_SERVERROOT= (usually =/etc/cups=) and =CUPS_DATADIR= (usually =/usr/share/cups/=) for locating configurations and ppd files. Those should always be set when called from cups, but will need to be set manually when starting the script outside of cups for debugging.
+The easiest way to install is using the included Makefile. The following variables can be overridden:
 
-All other variables can be overridden globally by adding a =$CUPS_SERVERROOT/email= configuration file, or for specific printers using =$CUPS_SERVERROOT/email-<queue>=
+- CUPS_PPD_DIR (/usr/share/cups/model)
+- CUPS_BACKEND_DIR (/usr/lib/cups/backend)
+- PS2PDF (/usr/bin/epstopdf)
+- MAILX (/usr/bin/mailx)
 
-The script assumes to find =mailx= and =epstopdf= in =/usr/bin=. If they are installed in different location configure them in =$CUPS_SERVERROOT/email=:
-
-#+BEGIN_SRC sh
-MAILCMD=/path/to/mailx
-PS2PDF=/path/to/epstopdf
-#+END_SRC
+Overrides to =PS2PDF= and =MAILX= also adjust the default path in the installed PPD.
 
 ** Configuration
 *** Adding a printer
 
 **** Adding through CLI
 
-Verify that the installation was successful using =lpinfo=:
+First the installation should be verified using =lpinfo=:
 
 #+BEGIN_SRC sh
 # lpinfo -m|grep -i email
 email.ppd email
 #+END_SRC
 
-Now add a printer using =lpadmin=:
+Now a printer can be added using =lpadmin=:
 
 #+BEGIN_SRC sh
 # lpadmin -p email-sample -E -v email:/sample -D 'Sample email printer' -L 'Printer location' -m email.ppd
 #+END_SRC
+
+Finally printer options can be set. A complete list of available options can be listed through =lpoptions=:
+
+#+BEGIN_SRC sh
+lpoptions -p email-sample -l
+
+#+END_SRC
+
+At least the =MailFrom= needs to be configured. Values for custom strings need to be prefixed with =Custom.= when set through =lpadmin=:
+
+#+BEGIN_SRC sh
+# lpadmin -p email-sample -E -o MailFrom=Custom.printer@example.com
+#+END_SRC
+
+Most installations also will need to set the =mailx_smtp= option for the SMTP server. A more complicated example using SMTP-AUTH is below.
 
 **** Adding through the web interface
 After successful installation a new printer called =E-Mail Device= should be available when adding new printers:
@@ -54,20 +79,6 @@ Select =email= as printer driver for this new printer:
 
 #+CAPTION: Configure printer driver
 [[./img/driver_select.png]]
-
-**** Adding queue specific configuration
-
-This step may be skipped when running with a properly configured sendmail, but even then it may be necessary to configure a from address.
-
-Create a queue configuration file in =$CUPS_SERVERROOT/email-<queue>:
-
-#+BEGIN_SRC sh
-FROM=printer@example.com
-DEFAULTDOMAIN=example.com
-smtp=mail.example.com
-#+END_SRC
-
-This is generally the smallest sensible configuration when sending via SMTP. You may need to add authentication information. Check the next section for available variables.
 
 *** Configuration variables
 
@@ -94,8 +105,27 @@ The location of the mailrc file, defaulting to =/dev/null=
 A list of variables understood by mailx (see the mailx man page), which will be exported (and therefore made available to mailx). The default list is ="from ORGANIZATION replyto sender sendwait signature smtp MAILRC"=.
 
 Any of those variables may be used in the configuration file. Most useful is the =smtp= variable, allowing sending via a SMTP server instead of local sendmail.
+*** Example configuration for gmail
+
+To use gmail as mail server [[https://myaccount.google.com/lesssecureapps]["less secure app access"]] needs to be enabled on the gmail account. After that a mailrc (with secure permissions!) can be added, for example to =/etc/cups/mailrc.gmail=:
+
+#+BEGIN_SRC sh
+set smtp-use-starttls
+set ssl-verify=ignore
+set smtp=smtp://smtp.gmail.com:587
+set smtp-auth=login
+set smtp-auth-user=your-mail-address
+set smtp-auth-password=your-password
+#+END_SRC
+
+lpadmin -p email-printer -E -o mailx_MAILRC=Custom./etc/cups/mailrc.gmail
+
 ** Printing
-TODO
+
+# lpstat -p email-sample
+printer email-sample disabled since Sat May  9 10:54:20 2020 -
+	MailFrom is not defined
+
 
 * References
 - [[https://www.cups.org/doc/api-filter.html][CUPS backend documentation]]

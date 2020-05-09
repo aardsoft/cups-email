@@ -6,176 +6,233 @@
 # This program is a modified version of fax4cups, available at
 # http://vigna.dsi.unimi.it/fax4CUPS/
 #
+# The current home of this script is https://github.com/aardsoft/cups-email
+#
+# This script should not need any modifications to adjust it to specific
+# installations - all configuration happens through printer options and
+# mailrc files. Please read the documentation.
+#
+# If you do need to make modifications please submit them upstream.
+#
 ###############################################################################
-# Do not edit anything after this point unless you know what you are doing... #
-#                                                                             #
-# You can override all defaults below with global or queue specific files:    #
-# - $CUPS_SERVERROOT/email             for global overrides                   #
-# - $CUPS_SERVERROOT/email-<queue>     for queue specific overrides           #
-###############################################################################
 
-# SERVERROT typically points to /etc/cups
-if [ -z "$CUPS_SERVERROOT" ]; then
-    echo "ERROR:CUPS_SERVERROOT not set. When running in CUPS this should not happen." 1>&2
-    exit 1
-fi
+# Variables set through installable options. When extending the PPD
+# a corresponding variable usually needs to be added here.
+config_vars="Mailx
+        EpsToPdf
+        MailBody
+        MailDefaultDomain
+        MailSubject
+        MailFrom
+        MailTo
+        MailToSource
+        mailx_MAILRC
+        mailx_smtp
+        mailx_replyto
+        mailx_sender
+        TempDirectory
+        PdfFilePattern"
 
-# DATADIR typically points to /usr/share/cups; model subdirectory has ppds
-if [ -z "$CUPS_DATADIR" ]; then
-    echo "ERROR:CUPS_DATADIR not set. When running in CUPS this should not happen." 1>&2
-    exit 1
-fi
+# Variables set through the user when printing. Via lpr a user can set
+# arbitrary options. This list limits it to options exposed via the user
+# interface (i.e., for everything not in this list the override will get
+# ignored)
+config_user_vars="MailSubject
+        MailTo
+        MailFrom
+        MailBody"
 
-# The full and complete path to the mailx program
-MAILCMD=/usr/bin/mailx
-
-# The full path to the postscript to pdf program (ps2pdf)
-PS2PDF=/usr/bin/epstopdf
-
-# The text to send in the body of the e-mail.  The actual "printed" document is
-# sent as a PDF attachment.
-MAILTEXT="This is the text of the e-mail.  The actual data that was printed is sent as a .PDF file"
-
-# The from address to use.
-FROM=""
-
-# The default method to get the send-to address (-j is from the jobname, -u is from the username).
-TO="-j"
-
-MAILRC=/dev/null
-
-# A list of mailx variables to be exported (i.e., made available to mailx if
-# set in the configuration files)
-MAILX_VARS="from ORGANIZATION replyto sender sendwait signature smtp
- smtp-auth smtp-auth-password smtp-auth-user MAILRC"
-
-if [ -f $CUPS_SERVERROOT/email ]; then
-    . $CUPS_SERVERROOT/email
-fi
-
+echo "DEBUG:email backend call arguments $@" 1>&2
+# when called without any arguments CUPS expects us to print a backend
+# info for use in the new printer page
 if [ $# -eq 0 ]; then
-    if [ ! -x "$MAILCMD" ]; then exit 1; fi
-    if [ ! -x "$PS2PDF" ]; then exit 1; fi
     echo "virtual email \"Unknown\" \"E-Mail Device\""
+    exit 0
 fi
 
-QUEUE=`echo $DEVICE_URI | cut -d '/' -f 2 -s`
-if [ -n "$QUEUE" ]; then
-    if [ -f $CUPS_SERVERROOT/email-default ]; then
-        . $CUPS_SERVERROOT/email-default
-    elif [ -f $CUPS_SERVERROOT/email-$QUEUE ]; then
-        . $CUPS_SERVERROOT/email-$QUEUE
+function getOptionFromPpd(){
+    _ppd=$1
+    shift
+    _option=$1
+    shift
+    _default_only=$1
+
+    if ! [ -f "$_ppd" ]; then
+        echo "ERROR:PPD in $_ppd does not exist." 1>&2
+        return
     fi
+
+    _default_option=`grep "^*Default$_option:" $_ppd`
+
+    if [ $? -ne 0 ]; then
+        echo "WARNING:No default value for $_option found in $_ppd" 1>&2
+        return
+    fi
+
+    _default_option_value=${_default_option##*: }
+    echo "DEBUG:Default option found with value '$_default_option_value'" 1>&2
+
+    if [ -n "$_default_only" ]; then
+        _ret=$_default_option_value
+    elif [[ "$_default_option_value" =~ ^Custom\. ]]; then
+        echo "DEBUG:Custom value found" 1>&2
+        _ret=${_default_option_value/Custom./}
+    else
+        echo "DEBUG:Default value found" 1>&2
+        _default_value=`grep "^*$_option $_default_option_value/" $_ppd`
+        _ret=${_default_value##*:}
+    fi
+
+    echo ${_ret//\"}
+}
+
+# This reads the queue default options from the queue-specific PPD, and then
+# performs initial error handling - no point in continuing if we can see the
+# environment is broken.
+if [ -z "$PPD" ]; then
+    echo "ERROR:No PPD provided in request, unable to read options." 1>&2
+else
+    for _var in $config_vars; do
+        _ret=$(getOptionFromPpd $PPD $_var)
+        export $_var="$_ret"
+    done
+    echo "DEBUG:Environment after PPD parsing: `env`" 1>&2
 fi
 
-if [ -z "$FROM" ]; then
-    echo "ERROR:FROM is not defined" 1>&2
+if [ ! -x "$Mailx" ]; then
+    echo "ERROR:mailx in '$Mailx' is not usable" 1>&2
     exit 1
 fi
 
-for VAR in $MAILX_VARS; do
-    export $VAR
-done
-
-# Parse user-specified options from the PostScript file and set -l/-m
-function getSelectedOption() {
-    for i in $@; do
-        case $i in
-            \**)
-                SELOPT=${i#[*]};
-                return
-                ;;
-        esac
-    done
-}
-
-function parseOptions() {
-    while read LINE; do
-        echo "DEBUG:$LINE" 1>&2
-        MAIN=${LINE%%:*}
-        OPTIONS=${LINE##*:}
-        getSelectedOption $OPTIONS
-
-        case $MAIN in
-            PageSize/*)
-                echo "PAGE=$( echo -n "$SELOPT" | tr '[:upper:]' '[:lower:]' )"
-                ;;
-            Resolution/*)
-                if [ "$SELOPT" == "204x98dpi" ]; then
-                    echo "RES=-l";
-                fi
-                ;;
-            To/*)
-                if [ $SELOPT == "JobName" ]; then
-                    echo "TO=-j"
-                elif [ $SELOPT == "UserName" ]; then
-                    echo "TO=-u"
-                fi
-                ;;
-        esac
-    done
-}
-
-eval $(lpoptions -p $PRINTER -l | parseOptions)
-echo "DEBUG:TO=$TO" 1>&2
-
-# loop over options. Extract custom strings, as well as overrides
-# for the TO (user or job name as address) flag
-echo "DEBUG:Options - $5" 1>&2
-for opt in $5; do
-    case "$opt" in
-        To=UserName*)
-            TO="-u"
-            ;;
-        To=JobName*)
-            TO="-j"
-            ;;
-        ToAddress=*)
-            TO_ADDRESS="${opt#ToAddress=}"
-            TO_ADDRESS="${TO_ADDRESS#Custom.}"
-            ;;
-    esac
-done
-
-# if no to address was specified via options try to fall back to either
-# job name or user name
-if [ -z "$TO_ADDRESS" ]; then
-    if [ "$TO" == "-j" ]; then
-        TO_ADDRESS="$3";
-    elif [ "$TO" == "-u" ]; then
-        if [ -n "$DEFAULTDOMAIN" ]; then
-            TO_ADDRESS="$2@$DEFAULTDOMAIN"
-        else
-            # this probably only works through local sendmail, not smtp
-            TO_ADDRESS="$2";
-        fi
-    else
-        echo "DEBUG:Unable to figure out TO" 1>&2
-        exit 1
-    fi
+if [ ! -x "$EpsToPdf" ]; then
+    echo "ERROR:epstopdf in '$EpsToPdf' is not usable" 1>&2
+    exit 1
 fi
+
+# Check some of the job specific options - everything listed in the
+# config_user_vars variable may override global options. We also
+# look for billing information.
+echo "DEBUG:Options - $5" 1>&2
+for _option in $5; do
+    IFS== read _opt_name _opt_value <<< $_option
+
+    if [ "$_opt_name" == "job-billing" ]; then
+        export BillingInfo="$_opt_value"
+    elif [[ "$config_user_vars" == *$_opt_name* ]]; then
+        # Some UI dialogs include all user overridable settings, even if
+        # they are at defaults. They also add the (technically correct)
+        # Custom. prefix to user specified fields.
+        # As a result we need to compare options to default options before
+        # adding overrides, and strip the Custom.
+        _ret=$(getOptionFromPpd $PPD $_opt_name 1)
+        if [ "$_ret" == "$_opt_value" ]; then
+            echo "DEBUG:$_opt_name seems to have default value $_ret" 1>&2
+        else
+            echo "DEBUG:Exporting $_opt_name=$_opt_value" 1>&2
+            export $_opt_name="${_opt_value#Custom.}"
+        fi
+    fi
+done
+
+case "$MailToSource" in
+    Auto)
+        # 1. MailTo set? Take it.
+        # 2. User name contains @? Take it.
+        # 3. Job name contains @? Take it.
+        # 4. Billing info exists and contains @? Take it.
+        # 5. Take the user name, as it has the highest change to resolve
+        #    to a valid address.
+        if [ -n "$MailTo" ]; then
+            echo "DEBUG:Selecting to address from MailTo" 1>&2
+            break
+        elif [[ "$2" == *@* ]]; then
+            echo "DEBUG:Selecting to address from user name" 1>&2
+            MailTo=$2
+            break
+        elif [[ "$3" == *@* ]]; then
+            echo "DEBUG:Selecting to address from job name" 1>&2
+            MailTo=$3
+            break
+        elif [ -n "$BillingInfo" ] && [[ "$BillingInfo" == *@* ]]; then
+            echo "DEBUG:Selecting to address from billing info" 1>&2
+            MailTo=$BillingInfo
+            break
+        else
+            echo "DEBUG:Selecting to address from user name (fallback)" 1>&2
+            MailTo=$2
+            break
+        fi
+        ;;
+    JobName)
+        MailTo=$3
+        ;;
+    UserName)
+        MailTo=$2
+        ;;
+    BillingInfo)
+        if [ -n "$BillingInfo" ]; then
+            MailTo=$BillingInfo
+        else
+            echo "ERROR:Billing info requested as address source, but not present" 1>&2
+        fi
+        ;;
+    *)
+        echo "ERROR:Invalid mail source configuration '$MailToSource'" 1>&2
+        exit 1
+        ;;
+esac
+
+# depending on sendmail setup continuing without a domain might fail, but
+# as we don't know the server we just continue either way. This might result
+# in a mailx error halting the queue later on, though.
+if ! [[ "$MailTo" == *@* ]] && [ -n "$MailDefaultDomain" ]; then
+    MailTo="$MailTo@$MailDefaultDomain"
+fi
+
+if [ -z "$MailFrom" ]; then
+    echo "ERROR:MailFrom is not defined" 1>&2
+    exit 1
+fi
+
+# cut the mailx_ prefix from all mailx specific vars, and export them for
+# mailx
+for _var in `set|grep ^mailx_`; do
+    export ${_var/mailx_/}
+done
+echo "DEBUG:Environment after exporting mailx variables: `env`" 1>&2
 
 echo 1>&2 # Apparently the first character emitted is somehow "eaten" by the reader
-echo "DEBUG:E-mail Address - $EMAIL" 1>&2
 if [ $# -eq 6 ]; then
     MAILFILE=$6
 else
-    MAILFILE=$(mktemp </dev/null /tmp/fax.XXXXXX) ||
+    MAILFILE=$(mktemp </dev/null $TempDirectory/$PdfFilePattern) ||
         (echo "ERROR:Failed to create temporary file" 1>&2; exit 1)
     cat >$MAILFILE
 fi
 
 MAILPDF="$MAILFILE.pdf"
 
-$PS2PDF $MAILFILE -o $MAILPDF
+_epstopdf_status=$($EpsToPdf $MAILFILE -o $MAILPDF 2>&1)
+_epstopdf_rc=$?
 
-echo "$MAILTEXT" | $MAILCMD -n -r "$FROM" -s "$SENDTYPE" -a $MAILPDF $TO_ADDRESS
-RC=$?
+if [ $_epstopdf_rc -ne 0 ]; then
+    echo "ERROR:Converting to PDF failed: $_epstopdf_status" 1>&2
+    exit $_epstopdf_rc
+fi
+
+# without this mailx returns without error even if sending has failed
+export sendwait=1
+echo "DEBUG:echo '$MailBody' | $Mailx -n -r '$MailFrom' -s '$MailSubject' -a $MAILPDF $MailTo" 1>&2
+_mailx_status=$(echo "$MailBody" | $Mailx -n -r "$MailFrom" -s "$MailSubject" -a $MAILPDF $MailTo 2>&1)
+_mailx_rc=$?
 
 rm -f $MAILPDF
 if [ $# -lt 6 ];then
     rm -f $MAILFILE
 fi
 
-echo "DEBUG:$MAILCMD returned $RC" 1>&2
-exit $RC
+if [ $_mailx_rc -ne 0 ]; then
+    echo "ERROR:Mail sending failed: $_mailx_status" 1>&2
+fi
+
+exit $_mailx_rc
