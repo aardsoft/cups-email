@@ -199,6 +199,12 @@ fi
 for _var in `set|grep ^mailx_`; do
     export ${_var/mailx_/}
 done
+
+# if mailrc is just a file name assume it's supposed to be in the cups
+# serverroot (generally /etc/cups)
+if ! [[ "$MAILRC" == /* ]]; then
+    export MAILRC="$CUPS_SERVERROOT/$MAILRC"
+fi
 echo "DEBUG:Environment after exporting mailx variables: `env`" 1>&2
 
 echo 1>&2 # Apparently the first character emitted is somehow "eaten" by the reader
