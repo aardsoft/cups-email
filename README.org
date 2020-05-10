@@ -1,5 +1,19 @@
-* cups-email
+* cups-email                                                          :TOC_4:
+  - [[#introduction][Introduction]]
+  - [[#breaking-changes-after-version-01][Breaking changes after version 0.1]]
+  - [[#installation][Installation]]
+  - [[#configuration][Configuration]]
+    - [[#adding-a-printer][Adding a printer]]
+      - [[#adding-through-cli][Adding through CLI]]
+      - [[#adding-through-the-web-interface][Adding through the web interface]]
+    - [[#example-configuration-for-gmail][Example configuration for gmail]]
+  - [[#printing][Printing]]
+    - [[#from-cli][From CLI]]
+    - [[#from-gtk-ui][From GTK UI]]
+    - [[#from-qt-ui][From Qt UI]]
+- [[#references][References]]
 
+** Introduction
 This is a fork of the old [[https://sourceforge.net/projects/cupsemailptr/][cupsemailptr]], which is a variant of [[http://vigna.di.unimi.it/fax4CUPS/][fax4CUPS]]. Improvements include:
 
 - configuration options through the cups server, allowing easy queue-specific configurations
