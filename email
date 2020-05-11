@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # /usr/lib/cups/backend/email - Script to send e-mail confirmations via the CUPS
 #                               print server
