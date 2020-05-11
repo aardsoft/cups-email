@@ -42,8 +42,9 @@ The easiest way to install is using the included Makefile. The following variabl
 - CUPS_BACKEND_DIR (/usr/lib/cups/backend)
 - PS2PDF (/usr/bin/epstopdf)
 - MAILX (/usr/bin/mailx)
+- TMPDIR (/tmp)
 
-Overrides to =PS2PDF= and =MAILX= also adjust the default path in the installed PPD.
+Overrides to =PS2PDF=, =MAILX= and =TMPDIR= also adjust the default path in the installed PPD.
 
 ** Configuration
 
