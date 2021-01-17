@@ -228,8 +228,8 @@ fi
 
 # without this mailx returns without error even if sending has failed
 export sendwait=1
-echo "DEBUG:echo '$MailBody' | $Mailx -n -r '$MailFrom' -s '$MailSubject' -a $MAILPDF $MailTo" 1>&2
-_mailx_status=$(echo "$MailBody" | $Mailx -n -r "$MailFrom" -s "$MailSubject" -a $MAILPDF $MailTo 2>&1)
+echo "DEBUG:echo '$MailBody' | $Mailx -n -r '$MailFrom' -s '$MailSubject' -A $MAILPDF $MailTo" 1>&2
+_mailx_status=$(echo "$MailBody" | $Mailx -n -r "$MailFrom" -s "$MailSubject" -A $MAILPDF $MailTo 2>&1)
 _mailx_rc=$?
 
 rm -f $MAILPDF
