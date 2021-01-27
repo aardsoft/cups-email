@@ -21,6 +21,8 @@ This is a fork of the old [[https://sourceforge.net/projects/cupsemailptr/][cups
 - free-form parameters (like to address) through the graphical print dialogue
 - significantly better error handling and reporting
 
+Note that this expects [[http://heirloom.sourceforge.net/mailx.html][heirloom mailx]] (formerly known as =nail=) as mailx. At least Ubuntu is no longer shipping this mailx variant as default. Supporting Ubuntu is possible if a Ubuntu user steps up, see [[https://github.com/aardsoft/cups-email/issues/5][this issue]] and [[https://github.com/aardsoft/cups-email/pull/7#issuecomment-762018394][this comment for details.]]
+
 ** Breaking changes after version 0.1
 
 Improvements after release 0.1 introduced many breaking changes. Please go through the configuration guide below again when upgrading. The breaking changes are mainly:
