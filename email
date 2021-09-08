@@ -113,7 +113,9 @@ fi
 # config_user_vars variable may override global options. We also
 # look for billing information.
 echo "DEBUG:Options - $5" 1>&2
+#TODO: this breaks with spaces in options
 for _option in $5; do
+    echo "DEBUG:Current option: '$_option'" 1>&2
     IFS== read _opt_name _opt_value <<< $_option
 
     if [ "$_opt_name" == "job-billing" ]; then
