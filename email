@@ -230,9 +230,16 @@ fi
 
 # without this mailx returns without error even if sending has failed
 export sendwait=1
-echo "DEBUG:echo '$MailBody' | $Mailx -n -r '$MailFrom' -s '$MailSubject' -a $MAILPDF $MailTo" 1>&2
-_mailx_status=$(echo "$MailBody" | $Mailx -n -r "$MailFrom" -s "$MailSubject" -a $MAILPDF $MailTo 2>&1)
-_mailx_rc=$?
+_mailx_version=$($Mailx -V)
+if echo $_mailx_version|grep -q "GNU Mailutils"; then
+    echo "DEBUG:echo '$MailBody' | $Mailx -n -r '$MailFrom' -s '$MailSubject' -a $MAILPDF $MailTo" 1>&2
+    _mailx_status=$(echo "$MailBody" | $Mailx -n -r "$MailFrom" -s "$MailSubject" -a $MAILPDF $MailTo 2>&1)
+    _mailx_rc=$?
+else
+    echo "DEBUG:echo '$MailBody' | $Mailx -n -r '$MailFrom' -s '$MailSubject' -A $MAILPDF $MailTo" 1>&2
+    _mailx_status=$(echo "$MailBody" | $Mailx -n -r "$MailFrom" -s "$MailSubject" -A $MAILPDF $MailTo 2>&1)
+    _mailx_rc=$?
+fi
 
 rm -f $MAILPDF
 if [ $# -lt 6 ];then
