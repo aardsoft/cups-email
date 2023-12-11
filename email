@@ -31,7 +31,8 @@ config_vars="Mailx
         mailx_replyto
         mailx_sender
         TempDirectory
-        PdfFilePattern"
+        PdfFilePattern
+        SpacePlaceholder"
 
 # Variables set through the user when printing. Via lpr a user can set
 # arbitrary options. This list limits it to options exposed via the user
@@ -40,7 +41,9 @@ config_vars="Mailx
 config_user_vars="MailSubject
         MailTo
         MailFrom
-        MailBody"
+        MailBody
+        PdfFilePattern
+        SpacePlaceholder"
 
 echo "DEBUG:email backend call arguments $@" 1>&2
 # when called without any arguments CUPS expects us to print a backend
@@ -120,6 +123,10 @@ for _option in $5; do
 
     if [ "$_opt_name" == "job-billing" ]; then
         export BillingInfo="$_opt_value"
+    elif [ "$_opt_name" == "MailSubject" ]; then
+        export MailSubject=$(tr "$SpacePlaceholder" " " <<< "${_opt_value#Custom.}")
+    elif [ "$_opt_name" == "MailBody" ]; then
+        export MailBody=$(tr "$SpacePlaceholder" " " <<< "${_opt_value#Custom.}")
     elif [[ "$config_user_vars" == *$_opt_name* ]]; then
         # Some UI dialogs include all user overridable settings, even if
         # they are at defaults. They also add the (technically correct)

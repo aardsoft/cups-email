@@ -95,6 +95,7 @@ mailx_sender/Mail sender: *Unset Custom.STRING
 MailDefaultDomain/Default mail domain: Unset *Custom.STRING
 PdfFilePattern/Pattern for attached file (must have multiple X): *Default Custom.STRING
 TempDirectory/Path to temporary directory: *Default Custom.STRING
+SpacePlaceholder/Space placeholder character: *Default Custom.STRING
 #+END_SRC
 
 At least the =MailFrom= needs to be configured. Values for custom strings need to be prefixed with =Custom.= when set through =lpadmin=:
@@ -106,6 +107,12 @@ At least the =MailFrom= needs to be configured. Values for custom strings need t
 Most installations also will need to set the =mailx_smtp= option for the SMTP server. A more complicated example using SMTP-AUTH is below.
 
 Only the variables prefixed with =mailx_= will be exported as the matching mailx settings. Additional mailx configuration will need to happen through a mailxrc file. If the value of =mailx_MAILRC= does not start with a slash it is assumed the configuration is relative to =CUPS_SERVERROOT= (usually /etc/cups). Generally mailrc files should be placed there.
+
+If you would like to use spaces in your =MailSubject= or =MailBody=, you will need to use a placeholder character such as "_" (the default). For example:
+
+#+BEGIN_SRC sh
+# lpadmin -p email-sample -E -o MailSubject=Custom.This_subject_will_contain_spaces -o MailBody=Custome.Here_is_your_file -o SpacePlaceholder=Custom._
+#+END_SRC
 
 **** Adding through the web interface
 After successful installation a new printer called =E-Mail Device= should be available when adding new printers:
