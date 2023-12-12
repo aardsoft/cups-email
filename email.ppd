@@ -181,6 +181,15 @@
 *CustomTempDirectory True: "<</cupsString1 3 -1 roll>>setpagedevice"
 *ParamCustomTempDirectory: 1 string 0 50
 
+*% configuration for the space character placeholder in MailSubject or MailBody
+*OpenUI *SpacePlaceholder/Space placeholder character: PickOne
+*DefaultSpacePlaceholder: Default
+*SpacePlaceholder Default/Default character: "_"
+*CloseUI: *SpacePlaceholder
+
+*CustomSpacePlaceholder True: "<</cupsString1 3 -1 roll>>setpagedevice"
+*ParamCustomSpacePlaceholder: 1 string 0 1
+
 *CloseGroup: InstallableOptions
 
 *DefaultFont: Courier
