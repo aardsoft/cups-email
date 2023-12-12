@@ -111,7 +111,7 @@ Only the variables prefixed with =mailx_= will be exported as the matching mailx
 If you would like to use spaces in your =MailSubject= or =MailBody=, you will need to use a placeholder character such as "_" (the default). For example:
 
 #+BEGIN_SRC sh
-# lpadmin -p email-sample -E -o MailSubject=Custom.This_subject_will_contain_spaces -o MailBody=Custome.Here_is_your_file -o SpacePlaceholder=Custom._
+# lpadmin -p email-sample -E -o MailSubject=Custom.This_subject_will_contain_spaces -o MailBody=Custom.Here_is_your_file -o SpacePlaceholder=Custom._
 #+END_SRC
 
 **** Adding through the web interface
