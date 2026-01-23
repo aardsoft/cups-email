@@ -63,3 +63,58 @@ jobs:
         with:
           name: mail-parts
           path: parts/*
+      - name: Extract release notes from last commit message
+        if: startsWith(github.ref, 'refs/tags/')
+        id: release_notes
+        run: |
+          notes=$(git log -1 --pretty=%B | sed -n '/release notes:/I,${/release notes:/I!p}')
+          if [ -z "$notes" ]; then
+            echo "We couldn't afford release notes."
+          fi
+
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$notes" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.body }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload assets to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAW_UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
+        run: |
+          UPLOAD_URL=${RAW_UPLOAD_URL%\{*}  # Remove the {?name,label} suffix
+          for filepath in email*; do
+            filename=$(basename "$filepath")
+            echo "Uploading $filename ..."
+            curl -s --fail --data-binary @"$filepath" \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              "${UPLOAD_URL}?name=${filename}"
+          done
+          for filepath in received/*.eml; do
+            filename=$(basename "$filepath")
+            echo "Uploading $filename ..."
+            curl -s --fail --data-binary @"$filepath" \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              "${UPLOAD_URL}?name=ci-email-${filename}"
+          done
+          for filepath in parts/*.pdf; do
+            filename=$(basename "$filepath")
+            echo "Uploading $filename ..."
+            curl -s --fail --data-binary @"$filepath" \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              "${UPLOAD_URL}?name=ci-pdf-${filename}"
+          done
