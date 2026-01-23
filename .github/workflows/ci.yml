@@ -1,0 +1,65 @@
+name: CI build
+
+on:
+  push:
+    branches: [ master ]
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cups cups-bsd ripmime wget texlive-font-utils iproute2 mailutils telnet strace nvi
+          wget https://github.com/aardsoft/debug-smtpd/releases/download/0.1/debug-smtpd-linux-amd64
+          chmod +x debug-smtpd-linux-amd64
+          ip -4 addr sh
+      - name: Install mail filter
+        run: |
+          sudo make install
+          sudo cp mailrc.local /etc/cups
+      - name: Configure printer queue
+        run: |
+          sudo sed -i 's/^LogLevel.*/LogLevel debug/' /etc/cups/cupsd.conf
+          sudo cupsd
+          sudo lpadmin -p email-sample -E -v email:/sample -D 'Sample email printer' -L 'Printer location' -m email.ppd
+          sudo lpadmin -p email-sample -E -o MailFrom=Custom.my.printer@example.com
+          sudo lpadmin -p email-sample -E -o mailx_MAILRC=Custom.mailrc.local
+          sudo lpadmin -p email-sample -E -o mailx_AttachFlag=Custom.-A
+          sudo lpstat -p email-sample -l
+      - name: Run print job
+        run: |
+          ./debug-smtpd-linux-amd64 --tls-mode starttls --max-emails 0 --filename-template "{{.Index}}" &
+          sleep 5 # allow some time for smtpd to start up
+          echo "This text goes into the PDF" | lpr -P email-sample
+          for i in {1..10}; do
+            if [ -f received/1.eml ]; then
+              ripmime -v -i received/1.eml -d parts
+              break
+            else
+              sudo lpstat -p email-sample -l
+              sudo lpstat -W all
+            fi
+            sleep 5
+          done
+          if ! [ -f received/1.eml ]; then
+            cat /var/log/cups/*
+            exit 1
+          fi
+      - name: Upload mails
+        uses: actions/upload-artifact@v6
+        with:
+          name: mail-data
+          path: received/*
+      - name: Upload split mail
+        uses: actions/upload-artifact@v6
+        with:
+          name: mail-parts
+          path: parts/*

@@ -1,0 +1,8 @@
+# this is a mailrc file used for CI
+set smtp-use-starttls
+set ssl-verify=ignore
+# this is the heirloom mailx syntax..
+set smtp=smtp://localhost:2525
+# and this is GNU mailutils. Without this it'll try to use sendmail
+set sendmail=smtp://localhost:2525
+set verbose

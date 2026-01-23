@@ -22,7 +22,7 @@ This is a fork of the old [[https://sourceforge.net/projects/cupsemailptr/][cups
 - free-form parameters (like to address) through the graphical print dialogue
 - significantly better error handling and reporting
 
-Note that this expects [[http://heirloom.sourceforge.net/mailx.html][heirloom mailx]] (formerly known as =nail=) as mailx. At least Ubuntu is no longer shipping this mailx variant as default. Supporting Ubuntu is possible if a Ubuntu user steps up, see [[https://github.com/aardsoft/cups-email/issues/5][this issue]] and [[https://github.com/aardsoft/cups-email/pull/7#issuecomment-762018394][this comment for details.]]
+Note that this expects [[http://heirloom.sourceforge.net/mailx.html][heirloom mailx]] (formerly known as =nail=) as mailx. Ubuntu - and some others - nowadays ship GNU mailutils, which generally should work after setting =mailx_AttachFlag= to =-A=. Note that some options in mailrc are different from the heirloom variant documented here. BSD mailx does not support attachements, and therefore is not supported at all.
 
 ** Breaking changes after version 0.1
 
