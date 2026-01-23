@@ -1,6 +1,7 @@
 * cups-email                                                          :TOC_4:
   - [[#introduction][Introduction]]
   - [[#breaking-changes-after-version-01][Breaking changes after version 0.1]]
+  - [[#breaking-changes-in-version-02][Breaking changes in version 0.2]]
   - [[#installation][Installation]]
   - [[#configuration][Configuration]]
     - [[#adding-a-printer][Adding a printer]]
@@ -33,6 +34,16 @@ Improvements after release 0.1 introduced many breaking changes. Please go throu
 - the option names have changed. Existing wrappers around lpr will need to be adjusted.
 - source for email address is no longer a user changeable option
 - email address source no longer allows option overrides when set to a specific source
+
+** Breaking changes in version 0.2
+
+The command line option far attaching files now defaults to =-a=, but can be customised:
+
+#+BEGIN_SRC sh
+lpadmin -p email-sample -E -o mailx_AttachFlag=Custom.-A
+#+END_SRC
+
+If mails start arriving without attachment after updating, check which flag is needed for your mailx.
 
 ** Installation
 
@@ -89,6 +100,7 @@ MailToSource/E-Mail Address source: *Auto JobName UserName BillingInfo
 EpsToPdf/Path to epstopdf: *Default Custom.STRING
 Mailx/Path to mailx: *Default Custom.STRING
 mailx_MAILRC/Path to mailrc: Default *Custom.STRING
+mailx_AttachFlag/Path to mailrc: Default *Custom.STRING
 mailx_smtp/SMTP server: Unset *Custom.STRING
 mailx_replyto/Mail reply-to: *Unset Custom.STRING
 mailx_sender/Mail sender: *Unset Custom.STRING

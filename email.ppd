@@ -127,6 +127,15 @@
 *Custommailx_MAILRC True: "<</cupsString1 3 -1 roll>>setpagedevice"
 *ParamCustommailx_MAILRC: 1 string 0 250
 
+*% configuration for mailx, argument for attachments
+*OpenUI *mailx_AttachFlag/Path to mailrc: PickOne
+*Defaultmailx_AttachFlag: Default
+*mailx_AttachFlag Default/Default path: "-a"
+*CloseUI: *mailx_AttachFlag
+
+*Custommailx_AttachFlag True: "<</cupsString1 3 -1 roll>>setpagedevice"
+*ParamCustommailx_AttachFlag: 1 string 0 250
+
 *% configuration for mailx, smtp
 *OpenUI *mailx_smtp/SMTP server: PickOne
 *Defaultmailx_smtp: Unset
